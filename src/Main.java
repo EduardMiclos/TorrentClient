@@ -4,12 +4,14 @@ public class Main {
 	
 	public static void main(String[] args) throws IOException {
 		
-		TorrentTrackerClient trackerClient = new TorrentTrackerClient("tracker.openbittorrent.com", 80);
-		byte[] response = trackerClient.connect();
+		TorrentTrackerClient trackerClient = new TorrentTrackerClient("opentracker.i2p.rocks", 6969);
 		
-		for (byte b : response) {			
-			System.out.println(b & 0xFF);
-		}
+		System.out.print(trackerClient.hasConnected());
+//		byte[] response = trackerClient.connect();
+//		
+//		for (byte b : response) {			
+//			System.out.println(b & 0xFF);
+//		}
 		
 //		socket = new DatagramSocket();
 //		

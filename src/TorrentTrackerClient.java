@@ -2,12 +2,11 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.DatagramPacket;
 
@@ -18,19 +17,42 @@ public class TorrentTrackerClient {
 	private InetAddress trackerAddress;
 	private int trackerPort;
 	
-	private byte[] initialConnectionId   = new byte[] { (byte)0x00, (byte)0x00, (byte)0x04, (byte)0x17, 
-													    (byte)0x27, (byte)0x10, (byte)0x19, (byte)0x80 };
+	/** Is true if the client has connected in the current session. */
+	private boolean isConnected = false;
 	
-	/** Random value. */
-	private byte[] initialTransactionId  = new byte[] { (byte)0x13, (byte)0x07, (byte)0x20, (byte)0x01 };
+	/** 8 bytes */
+	private static byte[] initialConnectionId   = new byte[] { (byte)0x00, (byte)0x00, (byte)0x04, (byte)0x17, 
+                                                               (byte)0x27, (byte)0x10, (byte)0x19, (byte)0x80 };
 	
-	private byte[] connectAction         = new byte[] { (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00 };
+	/** 4 bytes */
+	private static byte[] initialTransactionId  = new byte[] { (byte)0x13, (byte)0x07, (byte)0x20, (byte)0x01 };
 	
-	private byte[] announceAction        = new byte[] { (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x01 };
-	
-	
-	private boolean hasConnected = false;
+	/** 4 bytes */
 	private byte[] currentConnectionId = null;
+	
+	/** All possible actions when it comes to interacting with the Tracker. */
+	private static class TrackerAction {
+		
+		/** Initial connection. We're retrieving a connection id that we're going to be using when
+		 *  further communication is exchanged with the tracker. */
+		/** 4 bytes */
+		private static byte[] connect 	 = new byte[] { (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00 };
+		private static byte connectFlag = 0;
+		
+		/** Retrieving peers IP Addresses based on the torrent hash. We're going to connect to them
+		 *  and download our file piece by piece. */
+		/** 4 bytes */
+		private static byte[] announce 	 = new byte[] { (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x01 };
+		private static byte announceFlag = 1;
+		
+		/** Checking general torrent information: 
+		 * 	- the current number of connected seeds.
+		 *  - the number of times the torrent has been downloaded.
+		 *  - the current number of connected leechers. */
+		/** 4 bytes */
+		private static byte[] scrape 	 = new byte[] { (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x02 };
+		private static byte scrapeFlag = 2;
+	}
 	
 	private static final String CONNECTION_INFO_CACHEFILE_PATH = "cache/connectionInfo";
 	private static final String DOWNLOAD_INFO_CACHEFILE_PATH = "cache/downloadInfo";
@@ -47,58 +69,43 @@ public class TorrentTrackerClient {
 		this.socket = new DatagramSocket();
 	}
 	
-	private byte[] readByteArrayFromFile(String filePath) throws IOException {
-		File fileObject = new File(filePath);
-		if (fileObject.createNewFile()) {
-			System.err.print(String.format("Fatal error: The cache file is empty: %s", filePath));
-			System.exit(1);
-		}
+	public boolean hasConnected() throws IOException {
+		if (isConnected) return true;
 		
-		FileInputStream inputStream = new FileInputStream(filePath);
-		byte[] byteArr = inputStream.readAllBytes();
-		inputStream.close();
+		byte[] connectionInfo = ByteOperationHandler.readByteArrayFromFile(CONNECTION_INFO_CACHEFILE_PATH);
+		if (connectionInfo == null) return false;
 		
-		return byteArr;
+		byte[] word = ByteOperationHandler.readWord(connectionInfo);
+		long serverPacketType = ByteOperationHandler.wordToInt64(word);
+		
+		return serverPacketType == TrackerAction.connectFlag;
 	}
-	
-	private void writeByteArrayToFile(byte[] byteArr, String filePath) throws IOException {
-		File fileObject = new File(filePath);
-		fileObject.createNewFile();
-		
-		FileOutputStream outputStream = new FileOutputStream(filePath);
-		outputStream.write(byteArr, 0, byteArr.length);
-		outputStream.close();
-	}
-	
 	
 	public byte[] connect() throws IOException {
 		byte[] connectionId = initialConnectionId;
-		byte[] action = connectAction;
+		byte[] action = TrackerAction.connect;
 		byte[] transactionId = initialTransactionId;
+		byte[] socketMessage = ByteOperationHandler.mergeByteArrays(connectionId, action, transactionId);
 		
-		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-		outputStream.write(connectionId);
-		outputStream.write(action);
-		outputStream.write(transactionId);
-		
-		byte[] socketMessage = outputStream.toByteArray();
 		DatagramPacket packet = new DatagramPacket(socketMessage, socketMessage.length, this.trackerAddress, this.trackerPort);
 		socket.send(packet);
 		
 		packet = new DatagramPacket(new byte[16], 0, 16);
 		socket.receive(packet);
 		
-		writeByteArrayToFile(packet.getData(), CONNECTION_INFO_CACHEFILE_PATH);
+		ByteOperationHandler.writeByteArrayToFile(packet.getData(), CONNECTION_INFO_CACHEFILE_PATH);
+		
+		isConnected = true;
 		return packet.getData();
 	}
 	
 	
 	public byte[] announce() throws IOException {
-		if (!hasConnected)
-				connect();
+		if (!hasConnected()) connect();
+
 		
 		byte[] connectionId = currentConnectionId;
-		byte[] action = announceAction;
+		byte[] action = TrackerAction.announce;
 		byte[] transactionId = initialTransactionId;
 		return null;
 	}
