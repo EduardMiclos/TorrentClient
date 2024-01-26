@@ -58,7 +58,7 @@ public class ByteOperationHandler {
 	}
 	
 	public static byte[] readWord(byte[] byteArr, int from) {
-		return Arrays.copyOfRange(byteArr, from, from + 3);
+		return Arrays.copyOfRange(byteArr, from, from + 4);
 	}
 
 	

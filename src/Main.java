@@ -6,7 +6,7 @@ public class Main {
 		
 		TorrentTrackerClient trackerClient = new TorrentTrackerClient("opentracker.i2p.rocks", 6969);
 		
-		System.out.print(trackerClient.hasConnected());
+		System.out.print(trackerClient.announce());
 //		byte[] response = trackerClient.connect();
 //		
 //		for (byte b : response) {			
