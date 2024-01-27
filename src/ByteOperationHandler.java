@@ -4,6 +4,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.util.Arrays;
 
 public class ByteOperationHandler {
@@ -14,7 +15,7 @@ public class ByteOperationHandler {
 		ByteBuffer byteBuffer = ByteBuffer.allocate(capacity);
 		byteBuffer.put(byteArr);
 		byteBuffer.rewind();
-		return byteBuffer;
+		return byteBuffer;	
 	}
 	
 	public static byte[] readByteArrayFromFile(String filePath) throws IOException {
@@ -61,16 +62,28 @@ public class ByteOperationHandler {
 		return Arrays.copyOfRange(byteArr, from, from + 4);
 	}
 
+
+	public static byte[] int16ToByteArray(short n) {
+		return ByteBuffer.allocate(2).putShort(n).array();
+	}
 	
-	public static short wordToInt16(byte[] word) {
+	public static byte[] int32ToByteArray(int n) {
+		return ByteBuffer.allocate(4).putInt(n).array();
+	}
+	
+	public static byte[] int64ToByteArray(long n) {
+		return ByteBuffer.allocate(8).putLong(n).array();
+	}
+	
+	public static short byteArrayToInt16(byte[] word) {
 		return wrapByteArrayInBuffer(word, 16).getShort();
 	}
 	
-	public static int wordToInt32(byte[] word) {
+	public static int byteArrayToInt32(byte[] word) {
 		return wrapByteArrayInBuffer(word, 32).getInt();
 	}
 	
-	public static long wordToInt64(byte[] word) {
+	public static long byteArrayToInt64(byte[] word) {
 		return wrapByteArrayInBuffer(word, 64).getLong();
 	}
 	

@@ -12,7 +12,7 @@ import java.net.DatagramPacket;
 
 /** This class is responsible for handling the connection with the tracker and extract
  *  useful information to be used for downloading the file pieces. */
-public class TorrentTrackerClient {
+public class TrackerHandler {
 	private DatagramSocket socket;
 	private InetAddress trackerAddress;
 	private int trackerPort;
@@ -26,6 +26,9 @@ public class TorrentTrackerClient {
 	
 	/** 4 bytes */
 	private static byte[] initialTransactionId  = new byte[] { (byte)0x13, (byte)0x07, (byte)0x20, (byte)0x01 };
+	
+	/** 4  bytes */
+	private static byte[] clientKey 			= new byte[] { (byte)0x99, (byte)0x14, (byte)0x20, (byte)0x11 };
 	
 	/** 4 bytes */
 	private byte[] currentConnectionId = null;
@@ -77,7 +80,7 @@ public class TorrentTrackerClient {
 	private static final String CONNECTION_INFO_CACHEFILE_PATH = "cache/connectionInfo";
 	private static final String DOWNLOAD_INFO_CACHEFILE_PATH = "cache/downloadInfo";
 	
-	public TorrentTrackerClient(String trackerAddress, int trackerPort) throws SocketException {
+	public TrackerHandler(String trackerAddress, int trackerPort) throws SocketException {
 		try {
 			this.trackerAddress = InetAddress.getByName(trackerAddress);
 		} catch (UnknownHostException e) {
@@ -96,7 +99,7 @@ public class TorrentTrackerClient {
 		if (connectionInfo == null || connectionInfo.length != 16) return false;
 		
 		byte[] word = ByteOperationHandler.readWord(connectionInfo);
-		long serverPacketType = ByteOperationHandler.wordToInt64(word);
+		long serverPacketType = ByteOperationHandler.byteArrayToInt64(word);
 		
 		word = ByteOperationHandler.readWord(connectionInfo, 4);			
 		if (!Arrays.equals(initialTransactionId, word)) return false;
@@ -105,6 +108,8 @@ public class TorrentTrackerClient {
 		return serverPacketType == TrackerAction.connectFlag;
 	}
 	
+	/** Sending 16 bytes */
+	/** Receiving 16 bytes */
 	public byte[] connect() throws IOException {
 		byte[] connectionId = initialConnectionId;
 		byte[] action = TrackerAction.connect;
@@ -126,12 +131,17 @@ public class TorrentTrackerClient {
 	}
 	
 	
-	public byte[] announce(byte[] peerId, byte[] torrentHash, int downloadedBytes, int leftBytes, int uploadedBytes) throws IOException {
+	/** Sending 100 bytes */
+	/** Receiving 20 bytes + n*6 bytes, where n varies if NumWant is -1 else n = numWant. */
+	public byte[] announce(byte[] torrentHash, byte[] peerId, long downloadedBytes, int leftBytes, int uploadedBytes, int maxPeersNumber) throws IOException {
 		if (!hasConnected()) connect();
 
 		byte[] connectionId = currentConnectionId;
 		byte[] action = TrackerAction.announce;
 		byte[] transactionId = initialTransactionId;
+		byte[] downloaded = ByteOperationHandler.int64ToByteArray(downloadedBytes);
+		byte[] left = ByteOperationHandler.int64ToByteArray(leftBytes);
+		byte[] uploaded = ByteOperationHandler.int64ToByteArray(uploadedBytes);
 		byte[] event = TrackerEvent.none;
 		
 		if (downloadedBytes == 0)
@@ -139,8 +149,21 @@ public class TorrentTrackerClient {
 		else if (leftBytes == 0)
 			event = TrackerEvent.completed;
 		
-		byte[] ip = new byte[] { (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00 };
+		byte[] ip = ByteOperationHandler.int32ToByteArray(0);
+		byte[] key = clientKey;
+		byte[] numWant = ByteOperationHandler.int32ToByteArray(maxPeersNumber);
+		byte[] port = ByteOperationHandler.int16ToByteArray((short)socket.getPort());
 		
-		return connectionId;
+		byte[] socketMessage = ByteOperationHandler.mergeByteArrays(connectionId, action, transactionId, torrentHash, peerId, downloaded, left, uploaded, event, ip, key, numWant, port); 
+		
+		DatagramPacket packet = new DatagramPacket(socketMessage, socketMessage.length, trackerAddress, trackerPort);
+		socket.send(packet);
+		
+		int packetLength = 20 + maxPeersNumber * 6;
+		packet = new DatagramPacket(new byte[packetLength], packetLength);
+		socket.receive(packet);
+		
+	
+		return packet.getData();
 	}
 }

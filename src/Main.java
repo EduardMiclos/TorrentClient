@@ -4,9 +4,15 @@ public class Main {
 	
 	public static void main(String[] args) throws IOException {
 		
-		TorrentTrackerClient trackerClient = new TorrentTrackerClient("opentracker.i2p.rocks", 6969);
+		BittorrentClient torrentClient = new BittorrentClient("input/input.torrent");
 		
-		System.out.print(trackerClient.announce());
+//		TorrentTrackerClient trackerClient = new TorrentTrackerClient("opentracker.i2p.rocks", 6969);
+//		
+//		byte[] bytes = ByteOperationHandler.int32ToByteArray(-1);
+//		
+//		for (byte b : bytes) {
+//			   System.out.format("0x%x ", b);
+//			}
 //		byte[] response = trackerClient.connect();
 //		
 //		for (byte b : response) {			
