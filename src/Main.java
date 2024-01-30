@@ -1,12 +1,12 @@
 import java.io.IOException;
 
 public class Main {
-	
+
 	public static void main(String[] args) throws IOException {
-		
+
 		BittorrentClient torrentClient = new BittorrentClient("input/input.torrent");
 		torrentClient.download();
-		
+
 //		TorrentTrackerClient trackerClient = new TorrentTrackerClient("opentracker.i2p.rocks", 6969);
 //		
 //		byte[] bytes = ByteOperationHandler.int32ToByteArray(-1);
@@ -19,7 +19,7 @@ public class Main {
 //		for (byte b : response) {			
 //			System.out.println(b & 0xFF);
 //		}
-		
+
 //		socket = new DatagramSocket();
 //		
 //		try {
@@ -51,9 +51,7 @@ public class Main {
 //		
 //		String receivedMessage = new String(packet.getData(), 0, packet.getLength());
 //		socket.close();
-		
-		
-		
+
 	}
 
 }

@@ -4,54 +4,56 @@ import java.security.SecureRandom;
 public class BittorrentClient {
 	private TorrentFileHandler torrentFile;
 	private byte[] peerId;
-	
+
 	private enum BittorentState {
-		IDLE,
-		DOWNLOADING,
-		PAUSED,
-		COMPLETED
+		IDLE, DOWNLOADING, PAUSED, COMPLETED
 	}
+
 	private BittorentState state;
-	
+
 	private long downloadedBytes;
 	private long leftBytes;
 	private long uploadedBytes;
-	
+
 	private static int maxPeersNumber = 5;
-	
+
 	public BittorrentClient(String torrentFile) {
 		this.torrentFile = new TorrentFileHandler(torrentFile);
 		this.peerId = generatePeerId();
 		this.state = BittorentState.IDLE;
-		
+
 		this.downloadedBytes = 0;
 		this.leftBytes = this.torrentFile.getDownloadSize();
 		this.uploadedBytes = 0;
 	}
-	
+
 	private byte[] generatePeerId() {
 		byte[] randomBytes = new byte[20];
 		SecureRandom randomBytesGenerator = new SecureRandom();
 		randomBytesGenerator.nextBytes(randomBytes);
-		
+
 		return randomBytes;
 	}
-	
+
 	private void startDownload() throws IOException {
-		/** In the future, here I should use the trackers extracted from the torrent file. */
+		/**
+		 * In the future, here I should use the trackers extracted from the torrent
+		 * file.
+		 */
 		TrackerHandler trackerHandler = new TrackerHandler("tracker.openbittorrent.com", 6969);
-		trackerHandler.announce(torrentFile.getHash(), peerId, downloadedBytes, leftBytes, uploadedBytes, maxPeersNumber);
-		
+		trackerHandler.announce(torrentFile.getHash(), peerId, downloadedBytes, leftBytes, uploadedBytes,
+				maxPeersNumber);
+
 	}
-	
+
 	private void pauseDownload() {
-		
+
 	}
-	
+
 	private void resumeDownload() {
-	
+
 	}
-	
+
 	public void download() throws IOException {
 		switch (state) {
 		case IDLE: {
@@ -76,7 +78,7 @@ public class BittorrentClient {
 			throw new IllegalArgumentException("Unexpected state: " + state);
 		}
 	}
-	
+
 	public void pause() {
 		switch (state) {
 		case IDLE: {
