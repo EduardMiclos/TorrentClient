@@ -3,6 +3,8 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -30,7 +32,7 @@ public class TrackerHandler {
 	/** 4  bytes */
 	private static byte[] clientKey 			= new byte[] { (byte)0x99, (byte)0x14, (byte)0x20, (byte)0x11 };
 	
-	/** 4 bytes */
+	/** 8 bytes */
 	private byte[] currentConnectionId = null;
 	
 	/** 4 bytes */
@@ -77,19 +79,39 @@ public class TrackerHandler {
 		
 	}
 	
+	private static final int[] listeningPortRange = {6881, 6889};
+	private int listeningPort;
+	
 	private static final String CONNECTION_INFO_CACHEFILE_PATH = "cache/connectionInfo";
 	private static final String DOWNLOAD_INFO_CACHEFILE_PATH = "cache/downloadInfo";
 	
-	public TrackerHandler(String trackerAddress, int trackerPort) throws SocketException {
+	public TrackerHandler(String trackerAddress, int trackerPort) {
 		try {
 			this.trackerAddress = InetAddress.getByName(trackerAddress);
 		} catch (UnknownHostException e) {
-			System.err.print("Fatal error: Unknown host. Aborting!");
+			System.err.println("Fatal error: Unknown host. Aborting!");
 			System.exit(1);
 		}
 		
+		
 		this.trackerPort = trackerPort;
-		this.socket = new DatagramSocket();
+		
+		for (int port = listeningPortRange[0]; port <= listeningPortRange[1]; port++) {
+			try {
+				this.socket = new DatagramSocket(port);
+				this.listeningPort = port;
+			}
+			catch(SocketException e) {
+				System.err.println(String.format("Failed: Unable to open socket on port %d.", port));
+				System.err.println(e.getMessage());
+				
+				if (port >= listeningPortRange[1]) {
+					System.err.println("Error: No Bittorent port is open. Aborting!");
+					System.exit(1);
+				}				
+			}
+		}
+	
 	}
 	
 	public boolean hasConnected() throws IOException {
@@ -104,7 +126,7 @@ public class TrackerHandler {
 		word = ByteOperationHandler.readWord(connectionInfo, 4);			
 		if (!Arrays.equals(initialTransactionId, word)) return false;
 		
-		currentConnectionId = ByteOperationHandler.readWord(connectionInfo, 8);
+		currentConnectionId = ByteOperationHandler.readBytes(connectionInfo, 8, 16);
 		return serverPacketType == TrackerAction.connectFlag;
 	}
 	
@@ -124,7 +146,7 @@ public class TrackerHandler {
 		
 		ByteOperationHandler.writeByteArrayToFile(packet.getData(), CONNECTION_INFO_CACHEFILE_PATH);
 		
-		currentConnectionId = ByteOperationHandler.readWord(packet.getData(), 8);
+		currentConnectionId = ByteOperationHandler.readBytes(packet.getData(), 8, 16);
 		isConnected = true;
 		
 		return packet.getData();
@@ -133,7 +155,7 @@ public class TrackerHandler {
 	
 	/** Sending 100 bytes */
 	/** Receiving 20 bytes + n*6 bytes, where n varies if NumWant is -1 else n = numWant. */
-	public byte[] announce(byte[] torrentHash, byte[] peerId, long downloadedBytes, int leftBytes, int uploadedBytes, int maxPeersNumber) throws IOException {
+	public byte[] announce(byte[] torrentHash, byte[] peerId, long downloadedBytes, long leftBytes, long uploadedBytes, int maxPeersNumber) throws IOException {
 		if (!hasConnected()) connect();
 
 		byte[] connectionId = currentConnectionId;
@@ -152,6 +174,8 @@ public class TrackerHandler {
 		byte[] ip = ByteOperationHandler.int32ToByteArray(0);
 		byte[] key = clientKey;
 		byte[] numWant = ByteOperationHandler.int32ToByteArray(maxPeersNumber);
+		
+		/** Important note: Ports reserved for BitTorrent are typically 6881-6889. */
 		byte[] port = ByteOperationHandler.int16ToByteArray((short)socket.getPort());
 		
 		byte[] socketMessage = ByteOperationHandler.mergeByteArrays(connectionId, action, transactionId, torrentHash, peerId, downloaded, left, uploaded, event, ip, key, numWant, port); 
@@ -165,5 +189,6 @@ public class TrackerHandler {
 		
 	
 		return packet.getData();
+	
 	}
 }

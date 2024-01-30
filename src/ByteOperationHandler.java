@@ -4,7 +4,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.util.Arrays;
 
 public class ByteOperationHandler {
@@ -61,6 +60,10 @@ public class ByteOperationHandler {
 	public static byte[] readWord(byte[] byteArr, int from) {
 		return Arrays.copyOfRange(byteArr, from, from + 4);
 	}
+	
+	public static byte[] readBytes(byte[] byteArr, int from, int to) {
+		return Arrays.copyOfRange(byteArr, from, to);
+	}
 
 
 	public static byte[] int16ToByteArray(short n) {
@@ -85,6 +88,23 @@ public class ByteOperationHandler {
 	
 	public static long byteArrayToInt64(byte[] word) {
 		return wrapByteArrayInBuffer(word, 64).getLong();
+	}
+	
+	public static byte[] reverseByteOrder(byte[] byteArr) {
+		if (byteArr == null) return null;
+		
+		int i = 0;
+		int j = byteArr.length - 1;
+		byte tmp;
+		while (j > i) {
+			tmp = byteArr[i];
+			byteArr[i] = byteArr[j];
+			byteArr[j] = tmp;
+			i++;
+			j--;
+		}
+		
+		return byteArr;
 	}
 	
 }

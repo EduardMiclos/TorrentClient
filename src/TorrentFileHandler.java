@@ -12,7 +12,7 @@ import bencode.Type;
 public class TorrentFileHandler {
 	/** Relative path to the original torrent file. */
 	private String path;
-	
+
 	/** A list with all the trackers and their corresponding addresses + port numbers. */
 	private ArrayList<String> trackers;
 	
@@ -63,16 +63,52 @@ public class TorrentFileHandler {
 			LinkedHashMap<String, Object> fileInfo = (LinkedHashMap<String, Object>)torrentDict.get("info");
 			this.pieceSize = (long)fileInfo.get("piece length");
 			
-			System.out.println(this.trackers);
-			System.out.println(this.pieceSize);
-			System.out.println(this.downloadSize);
-			
 		} catch (FileNotFoundException e) {
-			System.err.print("Error: Torrent file could not be found.");
+			System.err.println("Error: Torrent file could not be found.");
 			System.exit(1);
 		} catch (IOException e) {
-			System.err.print("Error: Unable to read parse and read the torrent file.");
+			System.err.println("Error: Unable to read parse and read the torrent file.");
 			System.exit(1);
 		}
+	}
+	
+	public String getPath() {
+		return path;
+	}
+
+	public void setPath(String path) {
+		this.path = path;
+	}
+
+	public ArrayList<String> getTrackers() {
+		return trackers;
+	}
+
+	public void setTrackers(ArrayList<String> trackers) {
+		this.trackers = trackers;
+	}
+
+	public byte[] getHash() {
+		return hash;
+	}
+
+	public void setHash(byte[] hash) {
+		this.hash = hash;
+	}
+
+	public long getPieceSize() {
+		return pieceSize;
+	}
+
+	public void setPieceSize(long pieceSize) {
+		this.pieceSize = pieceSize;
+	}
+
+	public long getDownloadSize() {
+		return downloadSize;
+	}
+
+	public void setDownloadSize(long downloadSize) {
+		this.downloadSize = downloadSize;
 	}
 }

@@ -5,6 +5,7 @@ public class Main {
 	public static void main(String[] args) throws IOException {
 		
 		BittorrentClient torrentClient = new BittorrentClient("input/input.torrent");
+		torrentClient.download();
 		
 //		TorrentTrackerClient trackerClient = new TorrentTrackerClient("opentracker.i2p.rocks", 6969);
 //		
