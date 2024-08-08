@@ -35,6 +35,9 @@ public class ByteOperationHandler {
 	public static void writeByteArrayToFile(byte[] byteArr, String filePath) throws IOException {
 		File fileObject = new File(filePath);
 
+		if (!fileObject.getParentFile().exists())
+			fileObject.getParentFile().mkdirs();
+		
 		if (fileObject.exists())
 			fileObject.delete();
 
@@ -91,6 +94,15 @@ public class ByteOperationHandler {
 		return wrapByteArrayInBuffer(word, 64).getLong();
 	}
 
+	public static String byteArrayToHexString(byte[] b) {
+		String result = "";
+		for (int i=0; i < b.length; i++) {
+		  result +=
+				Integer.toString( ( b[i] & 0xff ) + 0x100, 16).substring( 1 );
+		}
+		return result;
+	  }
+
 	public static byte[] reverseByteOrder(byte[] byteArr) {
 		if (byteArr == null)
 			return null;
@@ -108,5 +120,4 @@ public class ByteOperationHandler {
 
 		return byteArr;
 	}
-
 }

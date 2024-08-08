@@ -1,105 +1,204 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.security.SecureRandom;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.stream.Collectors;
+
+//import threads.TorrentSessionThread;
 
 public class BittorrentClient {
-	private TorrentFileHandler torrentFile;
-	private byte[] peerId;
-
-	private enum BittorentState {
-		IDLE, DOWNLOADING, PAUSED, COMPLETED
+	private ArrayList<TorrentSession> torrentSessions;
+	
+	/** The path to the cache folder. */
+	private static String CACHEDIR_PATH = "cache";
+	
+	public BittorrentClient() throws IOException {
+		loadUpPreviousSessions();
 	}
-
-	private BittorentState state;
-
-	private long downloadedBytes;
-	private long leftBytes;
-	private long uploadedBytes;
-
-	private static int maxPeersNumber = 5;
-
-	public BittorrentClient(String torrentFile) {
-		this.torrentFile = new TorrentFileHandler(torrentFile);
-		this.peerId = generatePeerId();
-		this.state = BittorentState.IDLE;
-
-		this.downloadedBytes = 0;
-		this.leftBytes = this.torrentFile.getDownloadSize();
-		this.uploadedBytes = 0;
-	}
-
-	private byte[] generatePeerId() {
-		byte[] randomBytes = new byte[20];
-		SecureRandom randomBytesGenerator = new SecureRandom();
-		randomBytesGenerator.nextBytes(randomBytes);
-
-		return randomBytes;
-	}
-
-	private void startDownload() throws IOException {
-		/**
-		 * In the future, here I should use the trackers extracted from the torrent
-		 * file.
-		 */
-		TrackerHandler trackerHandler = new TrackerHandler("tracker.openbittorrent.com", 6969);
-		trackerHandler.announce(torrentFile.getHash(), peerId, downloadedBytes, leftBytes, uploadedBytes,
-				maxPeersNumber);
-
-	}
-
-	private void pauseDownload() {
-
-	}
-
-	private void resumeDownload() {
-
-	}
-
-	public void download() throws IOException {
-		switch (state) {
-		case IDLE: {
-			System.out.println("INFO: Starting download...");
-			startDownload();
+	 
+	/** Some torrents might still be available and 
+	 *  not completely downloaded. This function will load
+	 *  each torrent session into the torrentSessions arraylist.
+	 * @throws IOException 
+	 */
+	private void loadUpPreviousSessions() throws IOException {
+		torrentSessions = new ArrayList<TorrentSession>();
+		
+		File folder = new File(CACHEDIR_PATH);
+		if (!folder.exists()) {
+			folder.mkdirs();
 			return;
 		}
-		case DOWNLOADING: {
-			System.out.println("INFO: Already started downloading!");
-			return;
+		 
+		ObjectInputStream objectInputStream = null;
+		FileInputStream fileInputStream = null;
+		
+		try {	
+			for (File dir : folder.listFiles()) {
+				
+				/** Each directory name is the hash of a torrent file. Inside the
+				 *  directory, a torrentSession serialized object is found. */
+				if (dir.isDirectory()) {
+					fileInputStream = new FileInputStream(dir.getAbsolutePath() + "/torrentsession.ser");
+					objectInputStream = new ObjectInputStream(fileInputStream);
+					
+					TorrentSession torrentSession = (TorrentSession) objectInputStream.readObject();
+					torrentSessions.add(torrentSession);
+				}
+			}
 		}
-		case COMPLETED: {
-			System.out.println("INFO: The download is already completed!");
-			return;
+		catch (Exception e) {
+			e.printStackTrace();
 		}
-		case PAUSED: {
-			System.out.println("INFO: Resuming download...");
-			resumeDownload();
-			return;
-		}
-		default:
-			throw new IllegalArgumentException("Unexpected state: " + state);
+		finally {
+			if (objectInputStream != null)
+				objectInputStream.close();
 		}
 	}
+	
+	private boolean saveTorrentSession(TorrentSession torrentSession) {
+		String torrentFileHash = torrentSession.getTorrentFile().getHash();
+		String torrentFilePath = CACHEDIR_PATH + '/' + torrentFileHash + '/';
+		
+		File folder = new File(torrentFilePath);
+		if (!folder.exists()) {
+			folder.mkdirs();
+		}
 
-	public void pause() {
-		switch (state) {
-		case IDLE: {
-			System.out.println("INFO: Nothing to pause. No download process on-going!");
-			return;
+		try {
+			FileOutputStream fileOutputStream = new FileOutputStream(torrentFilePath + "torrentsession.ser");
+			ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
+			
+			objectOutputStream.writeObject(torrentSession);
+			objectOutputStream.close();
+			
+			torrentSessions.add(torrentSession);
+			return true;
 		}
-		case DOWNLOADING: {
-			System.out.println("INFO: Pausing...");
-			pauseDownload();
-			return;
+		catch (IOException e) {
+			e.printStackTrace();
+			return false;
 		}
-		case COMPLETED: {
-			System.out.println("INFO: Nothing to pause. The download is completed!");
-			return;
+	}
+	
+	private boolean deleteTorrentSession(TorrentSession torrentSession) throws IOException {
+		torrentSessions.remove(torrentSession);
+
+		String torrentFileHash = torrentSession.getTorrentFile().getHash();
+		String torrentFilePath = CACHEDIR_PATH + '/' + torrentFileHash + '/';
+		
+		Path dir = Paths.get(torrentFilePath);
+		Files
+			.walk(dir)
+			.sorted(Comparator.reverseOrder())
+			.forEach(path -> {
+				try {
+					System.out.println("Deleting: " + path);
+					Files.delete(path);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			});
+		File folder = new File(torrentFilePath);	
+		return folder.delete();
+	}
+	
+	public boolean addTorrent(String torrentFilePath) throws NoSuchAlgorithmException, IOException {
+		TorrentFileHandler torrentFileHandler = new TorrentFileHandler(torrentFilePath);
+		boolean torrentExists = torrentSessions.stream()
+				.filter(torrent -> torrent.getTorrentFile().getHash().equals(torrentFileHandler.getHash()) || torrent.getTorrentFile().getPath().equals(torrentFilePath))
+											   .collect(Collectors.toList())
+											   .size() != 0;
+		
+		if (torrentExists) {
+			System.err.println("The torrent file " + torrentFilePath + " already exists!");
+			return false;
 		}
-		case PAUSED: {
-			System.out.println("INFO: Already paused!");
-			return;
+		
+		TorrentSession torrentSession = new TorrentSession(CACHEDIR_PATH, torrentFileHandler);
+		saveTorrentSession(torrentSession);
+		
+		System.out.println("Successfully added the torrent file!");
+		return true;
+	}
+	
+	public boolean removeTorrent(String torrentFilePath) throws NoSuchAlgorithmException, IOException {
+		try {
+			TorrentFileHandler torrentFileHandler = new TorrentFileHandler(torrentFilePath);
+			TorrentSession torrentSession = torrentSessions.stream()
+														   .filter(torrent -> torrent.getTorrentFile().getHash().equals(torrentFileHandler.getHash()) || torrent.getTorrentFile().getPath().equals(torrentFilePath))
+														   .collect(Collectors.toList())
+														   .get(0);
+			
+			deleteTorrentSession(torrentSession);
+
+			System.out.println("Successfully deleted the torrent file!");
+			return true;
 		}
-		default:
-			throw new IllegalArgumentException("Unexpected state: " + state);
+		catch (IndexOutOfBoundsException exception) {
+			System.err.println("The torrent file couldn't be found!");
+			return false;
 		}
+	}
+
+	public boolean download(String torrentFilePath) throws IOException {
+		try {
+			TorrentSession torrentSession = torrentSessions.stream()
+														   .filter(torrent -> torrent.getTorrentFile().getPath().equals(torrentFilePath))
+														   .collect(Collectors.toList())
+														   .get(0);
+			
+			return download(torrentSession);
+		}
+		catch (IndexOutOfBoundsException exception) {
+			System.err.println("The torrent file couldn't be found!");
+			return false;
+		}
+	}
+
+	public boolean download(TorrentSession torrentSession) throws IOException {
+		torrentSession.download();
+		saveTorrentSession(torrentSession);
+
+		// TorrentSessionThread thread = new TorrentSessionThread();
+		// thread.start();
+		// for (int i = 0; i < 100; i++) {
+		// 	System.out.println(i);
+		// }
+
+		return true;
+	}
+	
+	public boolean pause(String torrentFilePath) throws IOException {
+		try {
+			TorrentSession torrentSession = torrentSessions.stream()
+														   .filter(torrent -> torrent.getTorrentFile().getPath() == torrentFilePath)
+														   .collect(Collectors.toList())
+														   .get(0);
+			
+			return pause(torrentSession);
+		}
+		catch (IndexOutOfBoundsException exception) {
+			System.err.println("The torrent file couldn't be found!");
+			return false;
+		}
+	}
+
+	public boolean pause(TorrentSession torrentSession) throws IOException {
+		torrentSession.pause();
+		saveTorrentSession(torrentSession);
+		return true;
+	}
+
+	public ArrayList<TorrentSession> getTorrentSessions() {
+		return torrentSessions;
 	}
 }

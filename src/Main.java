@@ -1,57 +1,21 @@
 import java.io.IOException;
-
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Map;
+	
 public class Main {
-
-	public static void main(String[] args) throws IOException {
-
-		BittorrentClient torrentClient = new BittorrentClient("input/input.torrent");
-		torrentClient.download();
-
-//		TorrentTrackerClient trackerClient = new TorrentTrackerClient("opentracker.i2p.rocks", 6969);
-//		
-//		byte[] bytes = ByteOperationHandler.int32ToByteArray(-1);
-//		
-//		for (byte b : bytes) {
-//			   System.out.format("0x%x ", b);
-//			}
-//		byte[] response = trackerClient.connect();
-//		
-//		for (byte b : response) {			
-//			System.out.println(b & 0xFF);
-//		}
-
-//		socket = new DatagramSocket();
-//		
-//		try {
-//			address = InetAddress.getByName("tracker.openbittorrent.com");
-//		} catch (UnknownHostException e) {
-//			System.out.print("Fatal error: Unknown host. Aborting!");
-//			System.exit(1);
-//		}
-//		
-//		
-//		port = 80;
-//		
-//		byte[] connectionId = HexFormat.of().parseHex("0000041727101980");
-//		byte[] action = HexFormat.of().parseHex("00000000");
-//		byte[] transactionId = HexFormat.of().parseHex(Integer.toHexString((new Random()).nextInt()));
-//		
-//		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-//		outputStream.write(connectionId);
-//		outputStream.write(action);
-//		outputStream.write(transactionId);
-//		
-//		byte[] socketMessage = outputStream.toByteArray();
-//		
-//		
-//		DatagramPacket packet = new DatagramPacket(socketMessage, socketMessage.length, address, port);
-//		socket.send(packet);
-//		packet = new DatagramPacket(socketMessage, socketMessage.length);
-//		socket.receive(packet);
-//		
-//		String receivedMessage = new String(packet.getData(), 0, packet.getLength());
-//		socket.close();
-
+	
+	public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
+		BittorrentClient torrentClient = new BittorrentClient();
+//		torrentClient.removeTorrent("input/input.torrent");
+//		torrentClient.addTorrent("input/input.torrent");
+		
+//		 ArrayList<Map.Entry<String, Integer>> trackers = torrentClient.getTorrentSessions().get(0).getTorrentFile().getTrackers();
+//		 System.out.println(trackers.get(10));
+		// torrentClient.removeTorrent("input/input.torrent");
+        
+		torrentClient.download("input/input.torrent");
 	}
 
 }
+
